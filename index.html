@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Simulatore: quanto costa un giorno di smart working</title>
+<meta name="description" content="Simulatore interattivo per confrontare i costi di un giorno in ufficio vs un giorno di smart working, con parametri regolabili." />
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useMemo } = React;
+
+const MESI = ["Gen","Feb","Mar","Apr","Mag","Giu","Lug","Ago","Set","Ott","Nov","Dic"];
+// 0 = mezza stagione, 1 = inverno pieno (16°C), 2 = estate (ventilatore)
+const STAGIONE = [1,1,0.5,0,0,2,2,2,0,0.5,1,1];
+
+function Slider({ label, value, onChange, min, max, step, unit, hint }) {
+  return (
+    <div style={{ marginBottom: 22 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+        <span style={{ fontSize: 13, color: "#5a5652", fontWeight: 500 }}>{label}</span>
+        <span style={{ fontSize: 15, color: "#1a1816", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
+          {value}{unit}
+        </span>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        style={{ width: "100%", accentColor: "#b5482a", height: 4 }}
+      />
+      {hint && <div style={{ fontSize: 11.5, color: "#8a857f", marginTop: 4 }}>{hint}</div>}
+    </div>
+  );
+}
+
+function Simulatore() {
+  const [prezzoBenzina, setPrezzoBenzina] = useState(2.0);
+  const [giorniSW, setGiorniSW] = useState(1);
+  const [potenzaPC, setPotenzaPC] = useState(90);
+  const [oreAccesoUfficio, setOreAccesoUfficio] = useState(8);
+  const [costoPastoCasa, setCostoPastoCasa] = useState(3);
+  const [costoMensa, setCostoMensa] = useState(0.5);
+  const [costoKwh, setCostoKwh] = useState(0.28);
+  const [costoRiscaldamentoPieno, setCostoRiscaldamentoPieno] = useState(1.5);
+  const [costoVentilatore, setCostoVentilatore] = useState(0.1);
+  const [consumoAuto, setConsumoAuto] = useState(5.4);
+  const [kmTratta, setKmTratta] = useState(8);
+  const [costoAutostrada, setCostoAutostrada] = useState(0);
+
+  const calc = useMemo(() => {
+    const kmGiorno = kmTratta * 2;
+    const litriGiorno = (kmGiorno * consumoAuto) / 100;
+    const benzinaGiorno = litriGiorno * prezzoBenzina + costoAutostrada * 2;
+    const consumoPC = (potenzaPC / 1000) * oreAccesoUfficio * costoKwh;
+
+    return MESI.map((mese, i) => {
+      const stagione = STAGIONE[i];
+      let elettricoExtra = consumoPC;
+      if (stagione === 1) elettricoExtra += costoRiscaldamentoPieno;
+      else if (stagione === 0.5) elettricoExtra += costoRiscaldamentoPieno * 0.4;
+      else if (stagione === 2) elettricoExtra += costoVentilatore;
+
+      const risparmioTrasportoMensa = benzinaGiorno + costoMensa - costoPastoCasa;
+      const deltaGiorno = risparmioTrasportoMensa - elettricoExtra;
+
+      return {
+        mese,
+        deltaGiorno,
+        deltaMensile: deltaGiorno * giorniSW,
+        elettricoExtra,
+        benzinaGiorno,
+      };
+    });
+  }, [prezzoBenzina, giorniSW, potenzaPC, oreAccesoUfficio, costoPastoCasa, costoKwh, costoRiscaldamentoPieno, costoVentilatore, consumoAuto, kmTratta, costoAutostrada, costoMensa]);
+
+  const totaleAnnuo = calc.reduce((s, m) => s + m.deltaMensile, 0);
+  const maxAbs = Math.max(...calc.map((m) => Math.abs(m.deltaMensile)), 1);
+  const sempreConviene = calc.every((m) => m.deltaGiorno > 0);
+  const maiConviene = calc.every((m) => m.deltaGiorno < 0);
+
+  return (
+    <div style={{
+      fontFamily: "'IBM Plex Mono', 'SF Mono', Menlo, monospace",
+      background: "#f7f5f2",
+      minHeight: "100vh",
+      padding: "32px 20px",
+      color: "#1a1816",
+      boxSizing: "border-box",
+    }}>
+      <div style={{ maxWidth: 880, margin: "0 auto" }}>
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ fontSize: 12, letterSpacing: 0.5, color: "#b5482a", fontWeight: 600, marginBottom: 6 }}>
+            simulatore · ufficio vs casa
+          </div>
+          <h1 style={{ fontSize: 26, fontWeight: 600, margin: 0, letterSpacing: -0.3, fontFamily: "Georgia, serif" }}>
+            Quanto costa un giorno di smart working
+          </h1>
+        </div>
+
+        <div>
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            columnGap: 28,
+            marginBottom: 8,
+          }}>
+            <Slider label="Prezzo benzina" value={prezzoBenzina} onChange={setPrezzoBenzina} min={1.3} max={2.5} step={0.01} unit=" €/L" />
+            <Slider label="Distanza casa-ufficio" value={kmTratta} onChange={setKmTratta} min={1} max={100} step={1} unit=" km" hint="a tratta, andata" />
+            <Slider label="Consumo auto" value={consumoAuto} onChange={setConsumoAuto} min={3} max={15} step={0.1} unit=" L/100km" />
+            <Slider label="Costo autostrada" value={costoAutostrada} onChange={setCostoAutostrada} min={0} max={20} step={0.5} unit=" €" hint="a tratta, andata" />
+            <Slider label="Giorni smart working / mese" value={giorniSW} onChange={setGiorniSW} min={0} max={20} step={1} unit=" gg" />
+            <Slider label="Costo mensa aziendale" value={costoMensa} onChange={setCostoMensa} min={0} max={10} step={0.5} unit=" €" />
+            <Slider label="Costo pasto a casa" value={costoPastoCasa} onChange={setCostoPastoCasa} min={0} max={10} step={0.5} unit=" €" hint="pasto autonomo, vs mensa aziendale" />
+            <Slider label="Potenza PC + monitor" value={potenzaPC} onChange={setPotenzaPC} min={30} max={400} step={10} unit=" W" />
+            <Slider label="Ore acceso al giorno" value={oreAccesoUfficio} onChange={setOreAccesoUfficio} min={1} max={12} step={0.5} unit=" h" />
+            <Slider label="Costo energia elettrica" value={costoKwh} onChange={setCostoKwh} min={0.15} max={0.5} step={0.01} unit=" €/kWh" />
+            <Slider label="Extra riscaldamento (inverno)" value={costoRiscaldamentoPieno} onChange={setCostoRiscaldamentoPieno} min={0} max={4} step={0.1} unit=" €/gg" hint="costo extra di stare in casa di giorno, 16°C" />
+            <Slider label="Extra ventilatore (estate)" value={costoVentilatore} onChange={setCostoVentilatore} min={0} max={1} step={0.05} unit=" €/gg" />
+          </div>
+
+          <div style={{ marginTop: 12 }}>
+            <div style={{
+              background: sempreConviene ? "#eef5ea" : maiConviene ? "#f5eae8" : "#f2efe9",
+              border: `1px solid ${sempreConviene ? "#a8c99a" : maiConviene ? "#d9a898" : "#ddd6cc"}`,
+              borderRadius: 3,
+              padding: "18px 20px",
+              marginBottom: 24,
+            }}>
+              <div style={{ fontSize: 11, color: "#5a5652", marginBottom: 4 }}>risparmio annuo stimato</div>
+              <div style={{ fontSize: 32, fontWeight: 700, fontFamily: "Georgia, serif", color: totaleAnnuo >= 0 ? "#3d6b2c" : "#a8412a" }}>
+                {totaleAnnuo >= 0 ? "+" : ""}{totaleAnnuo.toFixed(2)} €
+                <span style={{ fontSize: 14, fontWeight: 400, color: "#5a5652" }}>
+                  {" "}({totaleAnnuo >= 0 ? "andando meno in ufficio" : "andando sempre in ufficio"})
+                </span>
+              </div>
+              <div style={{ fontSize: 12.5, color: "#5a5652", marginTop: 6 }}>
+                {sempreConviene && "Con questi parametri, lo smart working conviene in ogni mese dell'anno."}
+                {maiConviene && "Con questi parametri, l'ufficio conviene in ogni mese dell'anno."}
+                {!sempreConviene && !maiConviene && "Con questi parametri, conviene di più in alcuni mesi che in altri — vedi grafico."}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 8, fontSize: 11, color: "#5a5652" }}>
+              delta mensile (positivo = smart working conviene)
+            </div>
+            <div style={{ display: "flex", gap: 6, height: 90, alignItems: "flex-end" }}>
+              {calc.map((m) => {
+                const h = m.deltaMensile >= 0 ? (Math.abs(m.deltaMensile) / maxAbs) * 100 : 0;
+                return (
+                  <div key={m.mese} style={{ flex: 1, height: "100%", display: "flex", alignItems: "flex-end" }}>
+                    <div title={`${m.mese}: ${m.deltaMensile.toFixed(2)}€`} style={{ width: "100%", height: `${h}%`, background: "#5c8a4a", borderRadius: "1px 1px 0 0" }} />
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ display: "flex", gap: 6, borderTop: "1px solid #1a1816" }}>
+              {calc.map((m) => (
+                <div key={m.mese} style={{ flex: 1, height: 4, borderLeft: "1px solid transparent" }} />
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 6, height: 90, alignItems: "flex-start", marginBottom: 6 }}>
+              {calc.map((m) => {
+                const h = m.deltaMensile < 0 ? (Math.abs(m.deltaMensile) / maxAbs) * 100 : 0;
+                return (
+                  <div key={m.mese} style={{ flex: 1, height: "100%", display: "flex", alignItems: "flex-start" }}>
+                    <div title={`${m.mese}: ${m.deltaMensile.toFixed(2)}€`} style={{ width: "100%", height: `${h}%`, background: "#b5482a", borderRadius: "0 0 1px 1px" }} />
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ display: "flex", gap: 6, marginBottom: 28 }}>
+              {calc.map((m) => (
+                <div key={m.mese} style={{ flex: 1, textAlign: "center", fontSize: 10.5, color: "#8a857f" }}>
+                  {m.mese}
+                </div>
+              ))}
+            </div>
+
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid #1a1816" }}>
+                  <th style={{ textAlign: "left", padding: "6px 4px", fontWeight: 600 }}>Mese</th>
+                  <th style={{ textAlign: "right", padding: "6px 4px", fontWeight: 600 }}>Benzina/gg</th>
+                  <th style={{ textAlign: "right", padding: "6px 4px", fontWeight: 600 }}>Elettrico extra/gg</th>
+                  <th style={{ textAlign: "right", padding: "6px 4px", fontWeight: 600 }}>Delta/gg</th>
+                  <th style={{ textAlign: "right", padding: "6px 4px", fontWeight: 600 }}>Delta mese</th>
+                </tr>
+              </thead>
+              <tbody>
+                {calc.map((m) => (
+                  <tr key={m.mese} style={{ borderBottom: "1px solid #e8e3da" }}>
+                    <td style={{ padding: "6px 4px" }}>{m.mese}</td>
+                    <td style={{ textAlign: "right", padding: "6px 4px", color: "#5a5652" }}>{m.benzinaGiorno.toFixed(2)}€</td>
+                    <td style={{ textAlign: "right", padding: "6px 4px", color: "#5a5652" }}>{m.elettricoExtra.toFixed(2)}€</td>
+                    <td style={{ textAlign: "right", padding: "6px 4px", fontWeight: 600, color: m.deltaGiorno >= 0 ? "#3d6b2c" : "#a8412a" }}>
+                      {m.deltaGiorno >= 0 ? "+" : ""}{m.deltaGiorno.toFixed(2)}€
+                    </td>
+                    <td style={{ textAlign: "right", padding: "6px 4px", fontWeight: 600, color: m.deltaMensile >= 0 ? "#3d6b2c" : "#a8412a" }}>
+                      {m.deltaMensile >= 0 ? "+" : ""}{m.deltaMensile.toFixed(2)}€
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 32, fontSize: 11.5, color: "#5a5652", borderTop: "1px solid #ddd6cc", paddingTop: 18, lineHeight: 1.7 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "#1a1816", marginBottom: 10 }}>Formule e assunzioni</div>
+
+          <div style={{ marginBottom: 12 }}>
+            <strong style={{ color: "#1a1816" }}>Costo benzina/giorno</strong> = (distanza × 2 × consumo auto / 100) × prezzo benzina + (costo autostrada × 2)<br/>
+            Assunzione: la distanza inserita è a tratta singola (andata); si moltiplica per 2 per andata+ritorno. Il costo autostrada è per tratta, anch'esso raddoppiato.
+          </div>
+
+          <div style={{ marginBottom: 12 }}>
+            <strong style={{ color: "#1a1816" }}>Costo elettrico extra/giorno</strong> = (potenza PC+monitor / 1000 × ore accese × costo kWh) + extra stagionale<br/>
+            dove extra stagionale = extra riscaldamento pieno (Gen, Feb, Nov, Dic) · 40% dell'extra riscaldamento (Mar, Ott, mezza stagione) · extra ventilatore (Giu, Lug, Ago) · zero (Apr, Mag, Set).<br/>
+            Assunzione: rappresenta solo il consumo incrementale di stare in casa di giorno rispetto a un giorno in ufficio (PC e riscaldamento/raffreddamento spenti o ridotti) — non la bolletta intera, che è comunque dovuta a prescindere dal luogo di lavoro.
+          </div>
+
+          <div style={{ marginBottom: 12 }}>
+            <strong style={{ color: "#1a1816" }}>Delta/giorno</strong> = (costo benzina/giorno + costo mensa aziendale − costo pasto a casa) − costo elettrico extra/giorno<br/>
+            Positivo = smart working conviene quel giorno; negativo = ufficio conviene.
+          </div>
+
+          <div style={{ marginBottom: 12 }}>
+            <strong style={{ color: "#1a1816" }}>Delta mese</strong> = delta/giorno × giorni di smart working impostati per quel mese (stesso valore su tutti i mesi).<br/>
+            <strong style={{ color: "#1a1816" }}>Risparmio annuo</strong> = somma dei delta mensili sui 12 mesi.
+          </div>
+
+          <div>
+            Altre assunzioni: mensa aziendale e pasto a casa sono costi per singolo pasto, non per l'intera giornata. Elettricità e riscaldamento/raffreddamento in ufficio sono a carico dell'azienda (costo zero per l'utente). Non sono inclusi: usura/manutenzione auto, valore del tempo di percorrenza, assicurazione, bollo, o costi indiretti dello smart working (es. spazio/arredo casa).
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<Simulatore />);
+</script>
+</body>
+</html>
