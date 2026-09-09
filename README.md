@@ -2,7 +2,7 @@
 
 A small interactive tool to estimate the real cost difference between commuting to the office and working from home, month by month, based on adjustable parameters (fuel price, commute distance, car consumption, toll costs, meal costs, electricity, seasonal heating/cooling).
 
-**[Open the live simulator →](#)** *(replace with your GitHub Pages URL once published)*
+**[Open the live simulator →](#)** *https://eagleb.github.io/SmartWorkingSaving/*
 
 ## Why
 
@@ -48,13 +48,6 @@ Just open `index.html` in a browser, or serve the folder with any static file se
 python3 -m http.server
 ```
 
-## Deploying to GitHub Pages
-
-1. Push `index.html` to the root of this repo.
-2. Go to **Settings → Pages**.
-3. Set **Source** to your default branch, root folder.
-4. Your live URL will be `https://<username>.github.io/<repo-name>/`.
 
 ## License
-
-Feel free to fork and adapt for your own numbers.
+MIT license
