@@ -17,11 +17,123 @@
 <div id="root"></div>
 
 <script type="text/babel">
-const { useState, useMemo } = React;
+const { useState, useMemo, useEffect } = React;
 
-const MESI = ["Gen","Feb","Mar","Apr","Mag","Giu","Lug","Ago","Set","Ott","Nov","Dic"];
+const MESI = {
+  it: ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"],
+  en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+};
 // 0 = mezza stagione, 1 = inverno pieno (16°C), 2 = estate (ventilatore)
 const STAGIONE = [1,1,0.5,0,0,2,2,2,0,0.5,1,1];
+
+const TESTI = {
+  it: {
+    pageTitle: "Simulatore: quanto costa un giorno di smart working",
+    pageDescription: "Simulatore interattivo per confrontare i costi di un giorno in ufficio vs un giorno di smart working, con parametri regolabili.",
+    eyebrow: "simulatore · ufficio vs casa",
+    heading: "Quanto costa un giorno di smart working",
+    fuelPrice: "Prezzo benzina",
+    commuteDistance: "Distanza casa-ufficio",
+    oneWay: "a tratta, andata",
+    carConsumption: "Consumo auto",
+    tollCost: "Costo autostrada",
+    remoteDays: "Giorni smart working / mese",
+    canteenCost: "Costo mensa aziendale",
+    homeMealCost: "Costo pasto a casa",
+    homeMealHint: "pasto autonomo, vs mensa aziendale",
+    computerPower: "Potenza PC + monitor",
+    poweredHours: "Ore acceso al giorno",
+    electricityCost: "Costo energia elettrica",
+    heatingExtra: "Extra riscaldamento (inverno)",
+    heatingHint: "costo extra di stare in casa di giorno, 16°C",
+    fanExtra: "Extra ventilatore (estate)",
+    annualSaving: "risparmio annuo stimato",
+    remoteSaves: "andando meno in ufficio",
+    officeSaves: "andando sempre in ufficio",
+    remoteAlways: "Con questi parametri, lo smart working conviene in ogni mese dell'anno.",
+    officeAlways: "Con questi parametri, l'ufficio conviene in ogni mese dell'anno.",
+    mixedMonths: "Con questi parametri, conviene di più in alcuni mesi che in altri — vedi grafico.",
+    monthlyDelta: "delta mensile (positivo = smart working conviene)",
+    month: "Mese",
+    fuelPerDay: "Benzina/gg",
+    extraElectricityPerDay: "Elettrico extra/gg",
+    deltaPerDay: "Delta/gg",
+    monthDelta: "Delta mese",
+    formulaTitle: "Formule e assunzioni",
+    fuelFormulaTitle: "Costo benzina/giorno",
+    fuelFormula: " = (distanza × 2 × consumo auto / 100) × prezzo benzina + (costo autostrada × 2)",
+    fuelAssumption: "Assunzione: la distanza inserita è a tratta singola (andata); si moltiplica per 2 per andata+ritorno. Il costo autostrada è per tratta, anch'esso raddoppiato.",
+    electricityFormulaTitle: "Costo elettrico extra/giorno",
+    electricityFormula: " = (potenza PC+monitor / 1000 × ore accese × costo kWh) + extra stagionale",
+    seasonalExtra: "dove extra stagionale = extra riscaldamento pieno (Gen, Feb, Nov, Dic) · 40% dell'extra riscaldamento (Mar, Ott, mezza stagione) · extra ventilatore (Giu, Lug, Ago) · zero (Apr, Mag, Set).",
+    electricityAssumption: "Assunzione: rappresenta solo il consumo incrementale di stare in casa di giorno rispetto a un giorno in ufficio (PC e riscaldamento/raffreddamento spenti o ridotti) — non la bolletta intera, che è comunque dovuta a prescindere dal luogo di lavoro.",
+    dailyDeltaTitle: "Delta/giorno",
+    dailyDeltaFormula: " = (costo benzina/giorno + costo mensa aziendale − costo pasto a casa) − costo elettrico extra/giorno",
+    dailyDeltaMeaning: "Positivo = smart working conviene quel giorno; negativo = ufficio conviene.",
+    monthlyDeltaTitle: "Delta mese",
+    monthlyDeltaFormula: " = delta/giorno × giorni di smart working impostati per quel mese (stesso valore su tutti i mesi).",
+    annualSavingTitle: "Risparmio annuo",
+    annualSavingFormula: " = somma dei delta mensili sui 12 mesi.",
+    otherAssumptions: "Altre assunzioni: mensa aziendale e pasto a casa sono costi per singolo pasto, non per l'intera giornata. Elettricità e riscaldamento/raffreddamento in ufficio sono a carico dell'azienda (costo zero per l'utente). Non sono inclusi: usura/manutenzione auto, valore del tempo di percorrenza, assicurazione, bollo, o costi indiretti dello smart working (es. spazio/arredo casa).",
+    credits: "Crediti",
+    createdBy: "Creato da EagleB (Simone Belfiore)",
+    githubProfile: "Profilo GitHub",
+    linkedinProfile: "Profilo LinkedIn",
+  },
+  en: {
+    pageTitle: "Simulator: the cost of a work-from-home day",
+    pageDescription: "Interactive simulator to compare the cost of a day in the office with a work-from-home day, using adjustable parameters.",
+    eyebrow: "simulator · office vs home",
+    heading: "What does a work-from-home day cost?",
+    fuelPrice: "Fuel price",
+    commuteDistance: "Home-to-office distance",
+    oneWay: "one way",
+    carConsumption: "Car consumption",
+    tollCost: "Toll cost",
+    remoteDays: "Work-from-home days / month",
+    canteenCost: "Company canteen cost",
+    homeMealCost: "Home meal cost",
+    homeMealHint: "self-prepared meal, vs company canteen",
+    computerPower: "PC + monitor power",
+    poweredHours: "Hours on per day",
+    electricityCost: "Electricity cost",
+    heatingExtra: "Extra heating (winter)",
+    heatingHint: "extra cost of staying home during the day, 16°C",
+    fanExtra: "Extra fan cost (summer)",
+    annualSaving: "estimated annual saving",
+    remoteSaves: "fewer office days",
+    officeSaves: "always going to the office",
+    remoteAlways: "With these parameters, working from home pays off every month of the year.",
+    officeAlways: "With these parameters, the office is cheaper every month of the year.",
+    mixedMonths: "With these parameters, one option is better in some months than others — see the chart.",
+    monthlyDelta: "monthly delta (positive = working from home pays off)",
+    month: "Month",
+    fuelPerDay: "Fuel/day",
+    extraElectricityPerDay: "Extra electricity/day",
+    deltaPerDay: "Delta/day",
+    monthDelta: "Month delta",
+    formulaTitle: "Formulas and assumptions",
+    fuelFormulaTitle: "Fuel cost/day",
+    fuelFormula: " = (distance × 2 × car consumption / 100) × fuel price + (toll cost × 2)",
+    fuelAssumption: "Assumption: the entered distance is one way; it is multiplied by 2 for the round trip. The toll cost is also one way and is doubled.",
+    electricityFormulaTitle: "Extra electricity cost/day",
+    electricityFormula: " = (PC+monitor power / 1000 × hours on × kWh cost) + seasonal extra",
+    seasonalExtra: "where seasonal extra = full heating extra (Jan, Feb, Nov, Dec) · 40% of heating extra (Mar, Oct, shoulder season) · fan extra (Jun, Jul, Aug) · zero (Apr, May, Sep).",
+    electricityAssumption: "Assumption: this represents only the incremental cost of staying home during the day compared with a day at the office (PC and heating/cooling switched off or reduced) — not the full bill, which is due regardless of where you work.",
+    dailyDeltaTitle: "Delta/day",
+    dailyDeltaFormula: " = (fuel cost/day + company canteen cost − home meal cost) − extra electricity cost/day",
+    dailyDeltaMeaning: "Positive = working from home pays off that day; negative = the office pays off.",
+    monthlyDeltaTitle: "Month delta",
+    monthlyDeltaFormula: " = delta/day × work-from-home days set for that month (the same value for every month).",
+    annualSavingTitle: "Annual saving",
+    annualSavingFormula: " = sum of the monthly deltas over 12 months.",
+    otherAssumptions: "Other assumptions: company canteen and home meal costs are for one meal, not the full day. Office electricity and heating/cooling are paid by the employer (zero cost for the user). Not included: car wear and maintenance, the value of commuting time, insurance, road tax, or indirect work-from-home costs (e.g. home office space/furniture).",
+    credits: "Credits",
+    createdBy: "Created by EagleB (Simone Belfiore)",
+    githubProfile: "GitHub profile",
+    linkedinProfile: "LinkedIn profile",
+  },
+};
 
 function Slider({ label, value, onChange, min, max, step, unit, hint }) {
   return (
@@ -47,6 +159,9 @@ function Slider({ label, value, onChange, min, max, step, unit, hint }) {
 }
 
 function Simulatore() {
+  const [lingua, setLingua] = useState("it");
+  const testo = TESTI[lingua];
+  const mesi = MESI[lingua];
   const [prezzoBenzina, setPrezzoBenzina] = useState(2.0);
   const [giorniSW, setGiorniSW] = useState(1);
   const [potenzaPC, setPotenzaPC] = useState(90);
@@ -60,13 +175,19 @@ function Simulatore() {
   const [kmTratta, setKmTratta] = useState(8);
   const [costoAutostrada, setCostoAutostrada] = useState(0);
 
+  useEffect(() => {
+    document.documentElement.lang = lingua;
+    document.title = testo.pageTitle;
+    document.querySelector('meta[name="description"]').setAttribute("content", testo.pageDescription);
+  }, [lingua, testo]);
+
   const calc = useMemo(() => {
     const kmGiorno = kmTratta * 2;
     const litriGiorno = (kmGiorno * consumoAuto) / 100;
     const benzinaGiorno = litriGiorno * prezzoBenzina + costoAutostrada * 2;
     const consumoPC = (potenzaPC / 1000) * oreAccesoUfficio * costoKwh;
 
-    return MESI.map((mese, i) => {
+    return mesi.map((mese, i) => {
       const stagione = STAGIONE[i];
       let elettricoExtra = consumoPC;
       if (stagione === 1) elettricoExtra += costoRiscaldamentoPieno;
@@ -84,7 +205,7 @@ function Simulatore() {
         benzinaGiorno,
       };
     });
-  }, [prezzoBenzina, giorniSW, potenzaPC, oreAccesoUfficio, costoPastoCasa, costoKwh, costoRiscaldamentoPieno, costoVentilatore, consumoAuto, kmTratta, costoAutostrada, costoMensa]);
+  }, [mesi, prezzoBenzina, giorniSW, potenzaPC, oreAccesoUfficio, costoPastoCasa, costoKwh, costoRiscaldamentoPieno, costoVentilatore, consumoAuto, kmTratta, costoAutostrada, costoMensa]);
 
   const totaleAnnuo = calc.reduce((s, m) => s + m.deltaMensile, 0);
   const maxAbs = Math.max(...calc.map((m) => Math.abs(m.deltaMensile)), 1);
@@ -101,12 +222,35 @@ function Simulatore() {
       boxSizing: "border-box",
     }}>
       <div style={{ maxWidth: 880, margin: "0 auto" }}>
-        <div style={{ marginBottom: 32 }}>
+        <div style={{ marginBottom: 32, position: "relative" }}>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 4, marginBottom: 14 }}>
+            {[{ code: "it", flag: "🇮🇹", label: "Italiano" }, { code: "en", flag: "🇬🇧", label: "English" }].map((linguaOpzione) => (
+              <button
+                key={linguaOpzione.code}
+                type="button"
+                aria-label={linguaOpzione.label}
+                aria-pressed={lingua === linguaOpzione.code}
+                onClick={() => setLingua(linguaOpzione.code)}
+                style={{
+                  border: `1px solid ${lingua === linguaOpzione.code ? "#b5482a" : "#ddd6cc"}`,
+                  background: lingua === linguaOpzione.code ? "#fffaf5" : "transparent",
+                  borderRadius: 3,
+                  padding: "4px 7px",
+                  fontSize: 18,
+                  lineHeight: 1,
+                  cursor: "pointer",
+                  opacity: lingua === linguaOpzione.code ? 1 : 0.65,
+                }}
+              >
+                {linguaOpzione.flag}
+              </button>
+            ))}
+          </div>
           <div style={{ fontSize: 12, letterSpacing: 0.5, color: "#b5482a", fontWeight: 600, marginBottom: 6 }}>
-            simulatore · ufficio vs casa
+            {testo.eyebrow}
           </div>
           <h1 style={{ fontSize: 26, fontWeight: 600, margin: 0, letterSpacing: -0.3, fontFamily: "Georgia, serif" }}>
-            Quanto costa un giorno di smart working
+            {testo.heading}
           </h1>
         </div>
 
@@ -117,18 +261,18 @@ function Simulatore() {
             columnGap: 28,
             marginBottom: 8,
           }}>
-            <Slider label="Prezzo benzina" value={prezzoBenzina} onChange={setPrezzoBenzina} min={1.3} max={2.5} step={0.01} unit=" €/L" />
-            <Slider label="Distanza casa-ufficio" value={kmTratta} onChange={setKmTratta} min={1} max={100} step={1} unit=" km" hint="a tratta, andata" />
-            <Slider label="Consumo auto" value={consumoAuto} onChange={setConsumoAuto} min={3} max={15} step={0.1} unit=" L/100km" />
-            <Slider label="Costo autostrada" value={costoAutostrada} onChange={setCostoAutostrada} min={0} max={20} step={0.5} unit=" €" hint="a tratta, andata" />
-            <Slider label="Giorni smart working / mese" value={giorniSW} onChange={setGiorniSW} min={0} max={20} step={1} unit=" gg" />
-            <Slider label="Costo mensa aziendale" value={costoMensa} onChange={setCostoMensa} min={0} max={10} step={0.5} unit=" €" />
-            <Slider label="Costo pasto a casa" value={costoPastoCasa} onChange={setCostoPastoCasa} min={0} max={10} step={0.5} unit=" €" hint="pasto autonomo, vs mensa aziendale" />
-            <Slider label="Potenza PC + monitor" value={potenzaPC} onChange={setPotenzaPC} min={30} max={400} step={10} unit=" W" />
-            <Slider label="Ore acceso al giorno" value={oreAccesoUfficio} onChange={setOreAccesoUfficio} min={1} max={12} step={0.5} unit=" h" />
-            <Slider label="Costo energia elettrica" value={costoKwh} onChange={setCostoKwh} min={0.15} max={0.5} step={0.01} unit=" €/kWh" />
-            <Slider label="Extra riscaldamento (inverno)" value={costoRiscaldamentoPieno} onChange={setCostoRiscaldamentoPieno} min={0} max={4} step={0.1} unit=" €/gg" hint="costo extra di stare in casa di giorno, 16°C" />
-            <Slider label="Extra ventilatore (estate)" value={costoVentilatore} onChange={setCostoVentilatore} min={0} max={1} step={0.05} unit=" €/gg" />
+            <Slider label={testo.fuelPrice} value={prezzoBenzina} onChange={setPrezzoBenzina} min={1.3} max={2.5} step={0.01} unit=" €/L" />
+            <Slider label={testo.commuteDistance} value={kmTratta} onChange={setKmTratta} min={1} max={100} step={1} unit=" km" hint={testo.oneWay} />
+            <Slider label={testo.carConsumption} value={consumoAuto} onChange={setConsumoAuto} min={3} max={15} step={0.1} unit=" L/100km" />
+            <Slider label={testo.tollCost} value={costoAutostrada} onChange={setCostoAutostrada} min={0} max={20} step={0.5} unit=" €" hint={testo.oneWay} />
+            <Slider label={testo.remoteDays} value={giorniSW} onChange={setGiorniSW} min={0} max={20} step={1} unit={lingua === "it" ? " gg" : " days"} />
+            <Slider label={testo.canteenCost} value={costoMensa} onChange={setCostoMensa} min={0} max={10} step={0.5} unit=" €" />
+            <Slider label={testo.homeMealCost} value={costoPastoCasa} onChange={setCostoPastoCasa} min={0} max={10} step={0.5} unit=" €" hint={testo.homeMealHint} />
+            <Slider label={testo.computerPower} value={potenzaPC} onChange={setPotenzaPC} min={30} max={400} step={10} unit=" W" />
+            <Slider label={testo.poweredHours} value={oreAccesoUfficio} onChange={setOreAccesoUfficio} min={1} max={12} step={0.5} unit=" h" />
+            <Slider label={testo.electricityCost} value={costoKwh} onChange={setCostoKwh} min={0.15} max={0.5} step={0.01} unit=" €/kWh" />
+            <Slider label={testo.heatingExtra} value={costoRiscaldamentoPieno} onChange={setCostoRiscaldamentoPieno} min={0} max={4} step={0.1} unit=" €/gg" hint={testo.heatingHint} />
+            <Slider label={testo.fanExtra} value={costoVentilatore} onChange={setCostoVentilatore} min={0} max={1} step={0.05} unit=" €/gg" />
           </div>
 
           <div style={{ marginTop: 12 }}>
@@ -139,22 +283,22 @@ function Simulatore() {
               padding: "18px 20px",
               marginBottom: 24,
             }}>
-              <div style={{ fontSize: 11, color: "#5a5652", marginBottom: 4 }}>risparmio annuo stimato</div>
+              <div style={{ fontSize: 11, color: "#5a5652", marginBottom: 4 }}>{testo.annualSaving}</div>
               <div style={{ fontSize: 32, fontWeight: 700, fontFamily: "Georgia, serif", color: totaleAnnuo >= 0 ? "#3d6b2c" : "#a8412a" }}>
                 {totaleAnnuo >= 0 ? "+" : ""}{totaleAnnuo.toFixed(2)} €
                 <span style={{ fontSize: 14, fontWeight: 400, color: "#5a5652" }}>
-                  {" "}({totaleAnnuo >= 0 ? "andando meno in ufficio" : "andando sempre in ufficio"})
+                  {" "}({totaleAnnuo >= 0 ? testo.remoteSaves : testo.officeSaves})
                 </span>
               </div>
               <div style={{ fontSize: 12.5, color: "#5a5652", marginTop: 6 }}>
-                {sempreConviene && "Con questi parametri, lo smart working conviene in ogni mese dell'anno."}
-                {maiConviene && "Con questi parametri, l'ufficio conviene in ogni mese dell'anno."}
-                {!sempreConviene && !maiConviene && "Con questi parametri, conviene di più in alcuni mesi che in altri — vedi grafico."}
+                {sempreConviene && testo.remoteAlways}
+                {maiConviene && testo.officeAlways}
+                {!sempreConviene && !maiConviene && testo.mixedMonths}
               </div>
             </div>
 
             <div style={{ marginBottom: 8, fontSize: 11, color: "#5a5652" }}>
-              delta mensile (positivo = smart working conviene)
+              {testo.monthlyDelta}
             </div>
             <div style={{ display: "flex", gap: 6, height: 90, alignItems: "flex-end" }}>
               {calc.map((m) => {
@@ -192,11 +336,11 @@ function Simulatore() {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid #1a1816" }}>
-                  <th style={{ textAlign: "left", padding: "6px 4px", fontWeight: 600 }}>Mese</th>
-                  <th style={{ textAlign: "right", padding: "6px 4px", fontWeight: 600 }}>Benzina/gg</th>
-                  <th style={{ textAlign: "right", padding: "6px 4px", fontWeight: 600 }}>Elettrico extra/gg</th>
-                  <th style={{ textAlign: "right", padding: "6px 4px", fontWeight: 600 }}>Delta/gg</th>
-                  <th style={{ textAlign: "right", padding: "6px 4px", fontWeight: 600 }}>Delta mese</th>
+                  <th style={{ textAlign: "left", padding: "6px 4px", fontWeight: 600 }}>{testo.month}</th>
+                  <th style={{ textAlign: "right", padding: "6px 4px", fontWeight: 600 }}>{testo.fuelPerDay}</th>
+                  <th style={{ textAlign: "right", padding: "6px 4px", fontWeight: 600 }}>{testo.extraElectricityPerDay}</th>
+                  <th style={{ textAlign: "right", padding: "6px 4px", fontWeight: 600 }}>{testo.deltaPerDay}</th>
+                  <th style={{ textAlign: "right", padding: "6px 4px", fontWeight: 600 }}>{testo.monthDelta}</th>
                 </tr>
               </thead>
               <tbody>
@@ -219,31 +363,43 @@ function Simulatore() {
         </div>
 
         <div style={{ marginTop: 32, fontSize: 11.5, color: "#5a5652", borderTop: "1px solid #ddd6cc", paddingTop: 18, lineHeight: 1.7 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "#1a1816", marginBottom: 10 }}>Formule e assunzioni</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "#1a1816", marginBottom: 10 }}>{testo.formulaTitle}</div>
 
           <div style={{ marginBottom: 12 }}>
-            <strong style={{ color: "#1a1816" }}>Costo benzina/giorno</strong> = (distanza × 2 × consumo auto / 100) × prezzo benzina + (costo autostrada × 2)<br/>
-            Assunzione: la distanza inserita è a tratta singola (andata); si moltiplica per 2 per andata+ritorno. Il costo autostrada è per tratta, anch'esso raddoppiato.
+            <strong style={{ color: "#1a1816" }}>{testo.fuelFormulaTitle}</strong>{testo.fuelFormula}<br/>
+            {testo.fuelAssumption}
           </div>
 
           <div style={{ marginBottom: 12 }}>
-            <strong style={{ color: "#1a1816" }}>Costo elettrico extra/giorno</strong> = (potenza PC+monitor / 1000 × ore accese × costo kWh) + extra stagionale<br/>
-            dove extra stagionale = extra riscaldamento pieno (Gen, Feb, Nov, Dic) · 40% dell'extra riscaldamento (Mar, Ott, mezza stagione) · extra ventilatore (Giu, Lug, Ago) · zero (Apr, Mag, Set).<br/>
-            Assunzione: rappresenta solo il consumo incrementale di stare in casa di giorno rispetto a un giorno in ufficio (PC e riscaldamento/raffreddamento spenti o ridotti) — non la bolletta intera, che è comunque dovuta a prescindere dal luogo di lavoro.
+            <strong style={{ color: "#1a1816" }}>{testo.electricityFormulaTitle}</strong>{testo.electricityFormula}<br/>
+            {testo.seasonalExtra}<br/>
+            {testo.electricityAssumption}
           </div>
 
           <div style={{ marginBottom: 12 }}>
-            <strong style={{ color: "#1a1816" }}>Delta/giorno</strong> = (costo benzina/giorno + costo mensa aziendale − costo pasto a casa) − costo elettrico extra/giorno<br/>
-            Positivo = smart working conviene quel giorno; negativo = ufficio conviene.
+            <strong style={{ color: "#1a1816" }}>{testo.dailyDeltaTitle}</strong>{testo.dailyDeltaFormula}<br/>
+            {testo.dailyDeltaMeaning}
           </div>
 
           <div style={{ marginBottom: 12 }}>
-            <strong style={{ color: "#1a1816" }}>Delta mese</strong> = delta/giorno × giorni di smart working impostati per quel mese (stesso valore su tutti i mesi).<br/>
-            <strong style={{ color: "#1a1816" }}>Risparmio annuo</strong> = somma dei delta mensili sui 12 mesi.
+            <strong style={{ color: "#1a1816" }}>{testo.monthlyDeltaTitle}</strong>{testo.monthlyDeltaFormula}<br/>
+            <strong style={{ color: "#1a1816" }}>{testo.annualSavingTitle}</strong>{testo.annualSavingFormula}
           </div>
 
           <div>
-            Altre assunzioni: mensa aziendale e pasto a casa sono costi per singolo pasto, non per l'intera giornata. Elettricità e riscaldamento/raffreddamento in ufficio sono a carico dell'azienda (costo zero per l'utente). Non sono inclusi: usura/manutenzione auto, valore del tempo di percorrenza, assicurazione, bollo, o costi indiretti dello smart working (es. spazio/arredo casa).
+            {testo.otherAssumptions}
+          </div>
+
+          <div style={{ marginTop: 22, paddingTop: 14, borderTop: "1px solid #ddd6cc" }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#1a1816", marginBottom: 4 }}>{testo.credits}</div>
+            <div>{testo.createdBy}</div>
+            <a href="https://github.com/EagleB" target="_blank" rel="noreferrer" style={{ color: "#b5482a" }}>
+              {testo.githubProfile}: github.com/EagleB
+            </a>
+            <br />
+            <a href="https://www.linkedin.com/in/simonebelfiore" target="_blank" rel="noreferrer" style={{ color: "#b5482a" }}>
+              {testo.linkedinProfile}: linkedin.com/in/simonebelfiore
+            </a>
           </div>
         </div>
       </div>
