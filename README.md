@@ -1,53 +1,94 @@
-# Office vs. remote work — cost simulator
+# SmartWorkingSaving
 
-A small interactive tool to estimate the real cost difference between commuting to the office and working from home, month by month, based on adjustable parameters (fuel price, commute distance, car consumption, toll costs, meal costs, electricity, seasonal heating/cooling).
+A lightweight interactive simulator to compare the cost of a day in the office versus a day spent working from home, with monthly totals, annual savings and CO2 impact.
 
-**[Open the live simulator →](#)** *https://eagleb.github.io/SmartWorkingSaving/*
+Live demo: https://eagleb.github.io/SmartWorkingSaving/
 
-## Why
+## Overview
 
-Most "office vs. home" cost comparisons rely on rough guesses. This tool breaks the decision into its actual cost components — commute, meals, and the incremental electricity/heating cost of staying home during the day — so you can see where the numbers actually land for your own situation, and how sensitive the result is to fuel prices or commute distance.
+This project helps answer a very practical question: is remote work cheaper than commuting to the office, once you include fuel, tolls, lunch costs, electricity, and seasonal home-heating/cooling costs?
 
-## What it does
+The calculator is intentionally transparent: it shows the monthly delta, annual savings, and the CO2 avoided by working remotely, while also exposing the formulas and assumptions used.
 
-- 12 adjustable parameters via sliders: fuel price, commute distance, car fuel consumption, toll cost, remote-work days per month, company canteen cost, home meal cost, PC+monitor power draw, hours powered on, electricity price, and seasonal heating/cooling extra cost.
-- Live bar chart showing the monthly delta (positive = remote work saves money, negative = office saves money).
-- Detailed monthly table with the underlying cost breakdown.
-- A transparency section at the bottom listing every formula and assumption used, so the model isn't a black box.
+## Current features
 
-## How it works
+- Adjustable parameters for:
+  - fuel price or EV charging cost
+  - home-to-office distance
+  - car consumption / EV consumption
+  - tolls
+  - remote-work days per week
+  - working weeks per year
+  - company canteen cost
+  - home meal cost
+  - PC + monitor power and daily usage hours
+  - electricity cost
+  - seasonal heating/cooling extras
+- ICE/EV vehicle toggle
+- Monthly savings chart with positive/negative deltas
+- Annual CO2 savings chart with equivalent tree count
+- Detailed monthly cost breakdown table
+- Collapsible parameter panel
+- One-click Excel export (.xlsx) with charts embedded
+- Bilingual interface: Italian and English
+- Formula and assumption panel at the bottom of the page
 
-The core logic compares, for a single day:
+## How the model works
 
+The daily comparison is based on this idea:
+
+```text
+delta/day = (commuting cost + company canteen cost - home meal cost) - extra home electricity cost
 ```
-delta/day = (commute fuel cost + canteen cost − home meal cost) − extra home electricity cost
-```
 
-Extra home electricity cost = PC/monitor power draw for the day + a seasonal component (full heating in winter, partial in shoulder months, fan cost in summer, zero in mild months). This is only the *incremental* electricity used by staying home during the day — not the full utility bill, since that's paid regardless of where you work.
+The extra home electricity cost includes:
+- the PC + monitor energy use during the workday
+- a seasonal uplift for heating in winter and fan use in summer
+- no full-utility-bill effect, since office utilities are assumed to be paid by the employer
 
-The monthly and annual totals are the daily delta multiplied by the number of remote-work days set.
-
-Full formulas and assumptions are documented in the page itself, under "Formule e assunzioni."
+Monthly and annual results are computed from that daily delta multiplied by the configured number of remote-work days and working weeks.
 
 ## Assumptions and limitations
 
-- Canteen and home meal costs are per single meal, not per full day.
-- Office electricity/heating/cooling is assumed fully covered by the employer (zero cost to the employee).
-- Not included: car wear and maintenance, insurance, road tax, the value of commuting time, or indirect costs of working from home (e.g. home office setup).
-- Default values reflect a specific real-world case (short commute, subsidized canteen, moderate heating at 16°C) — adjust the sliders to fit your own numbers.
+- Meal costs are treated as a single-meal cost, not a full-day cost.
+- Office lighting, electricity, heating, and cooling are treated as employer-covered costs.
+- The model does not include car wear and maintenance, insurance, road tax, commuting time value, or indirect home-office costs.
+- Default values are example-based and should be adjusted to reflect your own situation.
 
-## Tech
+## Project structure
 
-Single self-contained `index.html` file. React and Babel are loaded from CDN (unpkg) — no build step, no dependencies to install. Works as a static page on GitHub Pages or any static host.
+- `index.html` — complete app UI, styling, formulas, and logic
+- `README.md` — English overview
+- `README.it.md` — Italian overview
+- `LICENSE` — MIT license
 
 ## Running locally
 
-Just open `index.html` in a browser, or serve the folder with any static file server:
+You can open the app directly in a browser:
 
 ```bash
-python3 -m http.server
+start index.html
 ```
 
+Or serve the project locally:
+
+```bash
+python -m http.server
+```
+
+Then open http://localhost:8000 in your browser.
+
+## Tech stack
+
+This project is a static single-page app built with:
+
+- HTML + CSS
+- React via CDN
+- Babel for in-browser JSX compilation
+- ExcelJS for spreadsheet export
+
+There is no build step or package installation required.
 
 ## License
-MIT license
+
+MIT

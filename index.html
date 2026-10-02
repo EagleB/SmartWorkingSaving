@@ -8,6 +8,7 @@
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; }
@@ -26,6 +27,12 @@ const MESI = {
 // 0 = mezza stagione, 1 = inverno pieno (16°C), 2 = estate (ventilatore)
 const STAGIONE = [1,1,0.5,0,0,2,2,2,0,0.5,1,1];
 
+const CO2_BENZINA = 2.31; // kg CO2 per litro di benzina
+const CO2_RETE = 0.25;    // kg CO2 per kWh (media rete elettrica)
+const CO2_ALBERO = 21;    // kg CO2 assorbiti da un albero in un anno
+const MAX_ALBERI = 20;    // icone albero mostrate al massimo
+const GIORNI_CO2 = [0, 1, 2, 3, 4, 5]; // giorni di smart working a settimana
+
 const TESTI = {
   it: {
     pageTitle: "Simulatore: quanto costa un giorno di smart working",
@@ -37,7 +44,15 @@ const TESTI = {
     oneWay: "a tratta, andata",
     carConsumption: "Consumo auto",
     tollCost: "Costo autostrada",
-    remoteDays: "Giorni smart working / mese",
+    remoteDays: "Giorni smart working / settimana",
+    workingWeeks: "Settimane lavorative / anno",
+    parameters: "Parametri",
+    showParameters: "mostra",
+    hideParameters: "nascondi",
+    exportExcel: "Esporta in Excel",
+    exportError: "Esportazione non disponibile: libreria Excel non caricata.",
+    exportTotal: "Totale annuo",
+    workingWeeksHint: "usato per risparmio annuo e CO2 (ferie e festivi esclusi)",
     canteenCost: "Costo mensa aziendale",
     homeMealCost: "Costo pasto a casa",
     homeMealHint: "pasto autonomo, vs mensa aziendale",
@@ -55,13 +70,28 @@ const TESTI = {
     mixedMonths: "Con questi parametri, conviene di più in alcuni mesi che in altri — vedi grafico.",
     monthlyDelta: "delta mensile (positivo = smart working conviene)",
     month: "Mese",
-    fuelPerDay: "Benzina/gg",
+    fuelPerDay: "Auto/gg",
+    vehicleType: "Tipo di auto",
+    vehicleIce: "Termica (ICE)",
+    vehicleEv: "Elettrica (EV)",
+    evChargeCost: "Costo ricarica auto",
+    evChargeHint: "costo elettricità per la ricarica dell'EV",
+    evConsumption: "Consumo auto elettrica",
+    co2Title: "CO2 risparmiata all'anno in base ai giorni di smart working",
+    co2Summary: "Con {days} gg/settimana di smart working eviti circa {kg} kg di CO2 all'anno",
+    co2Trees: "= {n} alberi che assorbono CO2 per un anno",
+    co2NoTrees: "= meno di mezzo albero",
+    co2Axis: "giorni di smart working / settimana (clicca una barra)",
+    co2Tooltip: "{days} gg/settimana: {kg} kg CO2/anno",
+    co2FormulaTitle: "CO2 risparmiata",
+    co2Formula: " = (emissioni del tragitto − emissioni elettriche del PC a casa) × giorni di smart working a settimana × settimane lavorative all'anno. Emissioni del tragitto: litri × 2,31 kg/L (ICE) oppure kWh × 0,25 kg/kWh (EV). Alberi = kg CO2 / 21 kg per albero all'anno.",
+    co2Assumption: "Assunzione: fattori di emissione medi (benzina 2,31 kg CO2/L, rete elettrica 0,25 kg CO2/kWh, assorbimento di un albero 21 kg/anno). Riscaldamento e ventilatore non sono inclusi.",
     extraElectricityPerDay: "Elettrico extra/gg",
     deltaPerDay: "Delta/gg",
     monthDelta: "Delta mese",
     formulaTitle: "Formule e assunzioni",
     fuelFormulaTitle: "Costo benzina/giorno",
-    fuelFormula: " = (distanza × 2 × consumo auto / 100) × prezzo benzina + (costo autostrada × 2)",
+    fuelFormula: " = (distanza × 2 × consumo auto / 100) × prezzo benzina + (costo autostrada × 2). Per auto elettrica: prezzo benzina e consumo L/100km sono sostituiti da costo ricarica (€/kWh) e consumo kWh/100km.",
     fuelAssumption: "Assunzione: la distanza inserita è a tratta singola (andata); si moltiplica per 2 per andata+ritorno. Il costo autostrada è per tratta, anch'esso raddoppiato.",
     electricityFormulaTitle: "Costo elettrico extra/giorno",
     electricityFormula: " = (potenza PC+monitor / 1000 × ore accese × costo kWh) + extra stagionale",
@@ -71,9 +101,9 @@ const TESTI = {
     dailyDeltaFormula: " = (costo benzina/giorno + costo mensa aziendale − costo pasto a casa) − costo elettrico extra/giorno",
     dailyDeltaMeaning: "Positivo = smart working conviene quel giorno; negativo = ufficio conviene.",
     monthlyDeltaTitle: "Delta mese",
-    monthlyDeltaFormula: " = delta/giorno × giorni di smart working impostati per quel mese (stesso valore su tutti i mesi).",
+    monthlyDeltaFormula: " = delta/giorno × giorni di smart working a settimana × settimane lavorative / 12 (stesso valore su tutti i mesi).",
     annualSavingTitle: "Risparmio annuo",
-    annualSavingFormula: " = somma dei delta mensili sui 12 mesi.",
+    annualSavingFormula: " = somma dei delta mensili sui 12 mesi = delta/giorno × giorni a settimana × settimane lavorative.",
     otherAssumptions: "Altre assunzioni: mensa aziendale e pasto a casa sono costi per singolo pasto, non per l'intera giornata. Elettricità e riscaldamento/raffreddamento in ufficio sono a carico dell'azienda (costo zero per l'utente). Non sono inclusi: usura/manutenzione auto, valore del tempo di percorrenza, assicurazione, bollo, o costi indiretti dello smart working (es. spazio/arredo casa).",
     credits: "Crediti",
     createdBy: "Creato da EagleB (Simone Belfiore)",
@@ -90,7 +120,15 @@ const TESTI = {
     oneWay: "one way",
     carConsumption: "Car consumption",
     tollCost: "Toll cost",
-    remoteDays: "Work-from-home days / month",
+    remoteDays: "Work-from-home days / week",
+    workingWeeks: "Working weeks / year",
+    parameters: "Parameters",
+    showParameters: "show",
+    hideParameters: "hide",
+    exportExcel: "Export to Excel",
+    exportError: "Export unavailable: Excel library failed to load.",
+    exportTotal: "Annual total",
+    workingWeeksHint: "used for annual saving and CO2 (holidays and leave excluded)",
     canteenCost: "Company canteen cost",
     homeMealCost: "Home meal cost",
     homeMealHint: "self-prepared meal, vs company canteen",
@@ -108,13 +146,28 @@ const TESTI = {
     mixedMonths: "With these parameters, one option is better in some months than others — see the chart.",
     monthlyDelta: "monthly delta (positive = working from home pays off)",
     month: "Month",
-    fuelPerDay: "Fuel/day",
+    fuelPerDay: "Car/day",
+    vehicleType: "Car type",
+    vehicleIce: "Combustion (ICE)",
+    vehicleEv: "Electric (EV)",
+    evChargeCost: "Car charging cost",
+    evChargeHint: "electricity cost for charging the EV",
+    evConsumption: "Electric car consumption",
+    co2Title: "CO2 saved per year based on work-from-home days",
+    co2Summary: "With {days} work-from-home days/week you avoid about {kg} kg of CO2 per year",
+    co2Trees: "= {n} trees absorbing CO2 for a year",
+    co2NoTrees: "= less than half a tree",
+    co2Axis: "work-from-home days / week (click a bar)",
+    co2Tooltip: "{days} days/week: {kg} kg CO2/year",
+    co2FormulaTitle: "CO2 saved",
+    co2Formula: " = (commute emissions − home PC electricity emissions) × work-from-home days per week × working weeks per year. Commute emissions: litres × 2.31 kg/L (ICE) or kWh × 0.25 kg/kWh (EV). Trees = kg CO2 / 21 kg per tree per year.",
+    co2Assumption: "Assumption: average emission factors (petrol 2.31 kg CO2/L, electricity grid 0.25 kg CO2/kWh, a tree absorbs 21 kg/year). Heating and fan are not included.",
     extraElectricityPerDay: "Extra electricity/day",
     deltaPerDay: "Delta/day",
     monthDelta: "Month delta",
     formulaTitle: "Formulas and assumptions",
     fuelFormulaTitle: "Fuel cost/day",
-    fuelFormula: " = (distance × 2 × car consumption / 100) × fuel price + (toll cost × 2)",
+    fuelFormula: " = (distance × 2 × car consumption / 100) × fuel price + (toll cost × 2). For an electric car, fuel price and L/100km are replaced by charging cost (€/kWh) and kWh/100km consumption.",
     fuelAssumption: "Assumption: the entered distance is one way; it is multiplied by 2 for the round trip. The toll cost is also one way and is doubled.",
     electricityFormulaTitle: "Extra electricity cost/day",
     electricityFormula: " = (PC+monitor power / 1000 × hours on × kWh cost) + seasonal extra",
@@ -124,9 +177,9 @@ const TESTI = {
     dailyDeltaFormula: " = (fuel cost/day + company canteen cost − home meal cost) − extra electricity cost/day",
     dailyDeltaMeaning: "Positive = working from home pays off that day; negative = the office pays off.",
     monthlyDeltaTitle: "Month delta",
-    monthlyDeltaFormula: " = delta/day × work-from-home days set for that month (the same value for every month).",
+    monthlyDeltaFormula: " = delta/day × work-from-home days per week × working weeks per year / 12 (the same value for every month).",
     annualSavingTitle: "Annual saving",
-    annualSavingFormula: " = sum of the monthly deltas over 12 months.",
+    annualSavingFormula: " = sum of the monthly deltas over 12 months = delta/day × days per week × working weeks.",
     otherAssumptions: "Other assumptions: company canteen and home meal costs are for one meal, not the full day. Office electricity and heating/cooling are paid by the employer (zero cost for the user). Not included: car wear and maintenance, the value of commuting time, insurance, road tax, or indirect work-from-home costs (e.g. home office space/furniture).",
     credits: "Credits",
     createdBy: "Created by EagleB (Simone Belfiore)",
@@ -163,7 +216,9 @@ function Simulatore() {
   const testo = TESTI[lingua];
   const mesi = MESI[lingua];
   const [prezzoBenzina, setPrezzoBenzina] = useState(2.0);
-  const [giorniSW, setGiorniSW] = useState(1);
+  const [parametriAperti, setParametriAperti] = useState(true);
+  const [giorniSettimana, setGiorniSettimana] = useState(1);
+  const [settimaneAnno, setSettimaneAnno] = useState(46);
   const [potenzaPC, setPotenzaPC] = useState(90);
   const [oreAccesoUfficio, setOreAccesoUfficio] = useState(8);
   const [costoPastoCasa, setCostoPastoCasa] = useState(3);
@@ -174,6 +229,10 @@ function Simulatore() {
   const [consumoAuto, setConsumoAuto] = useState(5.4);
   const [kmTratta, setKmTratta] = useState(8);
   const [costoAutostrada, setCostoAutostrada] = useState(0);
+  const [tipoAuto, setTipoAuto] = useState("ice");
+  const [costoKwhAuto, setCostoKwhAuto] = useState(0.25);
+  const [consumoEV, setConsumoEV] = useState(16);
+  const isEV = tipoAuto === "ev";
 
   useEffect(() => {
     document.documentElement.lang = lingua;
@@ -184,8 +243,14 @@ function Simulatore() {
   const calc = useMemo(() => {
     const kmGiorno = kmTratta * 2;
     const litriGiorno = (kmGiorno * consumoAuto) / 100;
-    const benzinaGiorno = litriGiorno * prezzoBenzina + costoAutostrada * 2;
-    const consumoPC = (potenzaPC / 1000) * oreAccesoUfficio * costoKwh;
+    const kwhAutoGiorno = (kmGiorno * consumoEV) / 100;
+    const benzinaGiorno = (isEV ? kwhAutoGiorno * costoKwhAuto : litriGiorno * prezzoBenzina) + costoAutostrada * 2;
+    const kwhPC = (potenzaPC / 1000) * oreAccesoUfficio;
+    const consumoPC = kwhPC * costoKwh;
+    const co2Tragitto = isEV ? kwhAutoGiorno * CO2_RETE : litriGiorno * CO2_BENZINA;
+    const co2Giorno = co2Tragitto - kwhPC * CO2_RETE;
+
+    const giorniMese = (giorniSettimana * settimaneAnno) / 12;
 
     return mesi.map((mese, i) => {
       const stagione = STAGIONE[i];
@@ -200,17 +265,105 @@ function Simulatore() {
       return {
         mese,
         deltaGiorno,
-        deltaMensile: deltaGiorno * giorniSW,
+        deltaMensile: deltaGiorno * giorniMese,
         elettricoExtra,
         benzinaGiorno,
+        co2Giorno,
       };
     });
-  }, [mesi, prezzoBenzina, giorniSW, potenzaPC, oreAccesoUfficio, costoPastoCasa, costoKwh, costoRiscaldamentoPieno, costoVentilatore, consumoAuto, kmTratta, costoAutostrada, costoMensa]);
+  }, [mesi, prezzoBenzina, giorniSettimana, settimaneAnno, potenzaPC, oreAccesoUfficio, costoPastoCasa, costoKwh, costoRiscaldamentoPieno, costoVentilatore, consumoAuto, kmTratta, costoAutostrada, costoMensa, isEV, costoKwhAuto, consumoEV]);
+
+  const co2Giorno = calc[0].co2Giorno;
+  const co2Annuo = (giorni) => co2Giorno * giorni * settimaneAnno;
+  const co2Selezionato = co2Annuo(giorniSettimana);
+  const alberi = Math.max(0, Math.round(co2Selezionato / CO2_ALBERO));
+  const maxCo2 = Math.max(...GIORNI_CO2.map((g) => Math.abs(co2Annuo(g))), 1);
+  const fmt = (s, vars) => Object.entries(vars).reduce((t, [k, v]) => t.replace(`{${k}}`, v), s);
 
   const totaleAnnuo = calc.reduce((s, m) => s + m.deltaMensile, 0);
   const maxAbs = Math.max(...calc.map((m) => Math.abs(m.deltaMensile)), 1);
   const sempreConviene = calc.every((m) => m.deltaGiorno > 0);
   const maiConviene = calc.every((m) => m.deltaGiorno < 0);
+
+  const disegnaGrafico = (larghezza, altezza, disegna) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = larghezza * 2;
+    canvas.height = altezza * 2;
+    const ctx = canvas.getContext("2d");
+    ctx.scale(2, 2);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, larghezza, altezza);
+    ctx.font = "12px sans-serif";
+    ctx.textAlign = "center";
+    disegna(ctx);
+    return canvas.toDataURL("image/png");
+  };
+
+  const esportaExcel = async () => {
+    if (!window.ExcelJS) { alert(testo.exportError); return; }
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Smart working");
+    ws.columns = [{ width: 16 }, { width: 18 }, { width: 24 }, { width: 16 }, { width: 18 }];
+    const intestazione = ws.addRow([testo.month, testo.fuelPerDay, testo.extraElectricityPerDay, testo.deltaPerDay, testo.monthDelta]);
+    intestazione.font = { bold: true };
+    const euro = '#,##0.00 "€";[Red]-#,##0.00 "€"';
+    const arrotonda = (n) => Math.round(n * 100) / 100;
+    calc.forEach((m) => {
+      ws.addRow([m.mese, arrotonda(m.benzinaGiorno), arrotonda(m.elettricoExtra), arrotonda(m.deltaGiorno), arrotonda(m.deltaMensile)]);
+    });
+    const totale = ws.addRow([testo.exportTotal, null, null, null, arrotonda(totaleAnnuo)]);
+    totale.font = { bold: true };
+    for (let riga = 2; riga <= ws.rowCount; riga++) for (let col = 2; col <= 5; col++) ws.getCell(riga, col).numFmt = euro;
+
+    const L = 760;
+    const imgMensile = disegnaGrafico(L, 260, (ctx) => {
+      ctx.fillStyle = "#1a1816"; ctx.textAlign = "left"; ctx.fillText(testo.monthlyDelta, 10, 18); ctx.textAlign = "center";
+      const base = 130, meta = 90, larg = L / 12;
+      ctx.strokeStyle = "#1a1816"; ctx.beginPath(); ctx.moveTo(0, base); ctx.lineTo(L, base); ctx.stroke();
+      calc.forEach((m, i) => {
+        const h = (Math.abs(m.deltaMensile) / maxAbs) * meta;
+        ctx.fillStyle = m.deltaMensile >= 0 ? "#5c8a4a" : "#b5482a";
+        ctx.fillRect(i * larg + 8, m.deltaMensile >= 0 ? base - h : base, larg - 16, h);
+        ctx.fillStyle = "#5a5652";
+        ctx.fillText(m.mese, i * larg + larg / 2, 245);
+        ctx.fillText(m.deltaMensile.toFixed(0) + "€", i * larg + larg / 2, m.deltaMensile >= 0 ? base - h - 4 : base + h + 12);
+      });
+    });
+    const imgCo2 = disegnaGrafico(L, 280, (ctx) => {
+      ctx.fillStyle = "#1a1816"; ctx.textAlign = "left"; ctx.fillText(testo.co2Title, 10, 18);
+      ctx.fillStyle = "#5a5652";
+      ctx.fillText(fmt(testo.co2Summary, { days: giorniSettimana, kg: Math.round(co2Selezionato) }), 10, 38);
+      ctx.font = "18px sans-serif";
+      ctx.fillText("🌳".repeat(Math.min(alberi, MAX_ALBERI)) + (alberi > MAX_ALBERI ? " +" + (alberi - MAX_ALBERI) : ""), 10, 64);
+      ctx.font = "12px sans-serif"; ctx.fillStyle = "#3d6b2c";
+      ctx.fillText(alberi > 0 ? fmt(testo.co2Trees, { n: alberi }) : testo.co2NoTrees, 10, 84);
+      ctx.textAlign = "center";
+      const base = 235, meta = 110, larg = L / GIORNI_CO2.length;
+      ctx.strokeStyle = "#1a1816"; ctx.beginPath(); ctx.moveTo(0, base); ctx.lineTo(L, base); ctx.stroke();
+      GIORNI_CO2.forEach((g, i) => {
+        const v = co2Annuo(g), sel = g === giorniSettimana;
+        const h = v > 0 ? (v / maxCo2) * meta : 0;
+        ctx.fillStyle = sel ? "#3d6b2c" : "#8fb280";
+        ctx.fillRect(i * larg + 20, base - h, larg - 40, h);
+        ctx.fillStyle = "#5a5652";
+        ctx.fillText(String(g), i * larg + larg / 2, base + 15);
+        ctx.fillText(Math.round(v) + " kg", i * larg + larg / 2, base - h - (sel ? 22 : 5));
+        if (sel) { ctx.font = "16px sans-serif"; ctx.fillText("🌳", i * larg + larg / 2, base - h - 5); ctx.font = "12px sans-serif"; }
+      });
+      ctx.fillText(testo.co2Axis, L / 2, 268);
+    });
+    const riga = ws.rowCount + 2;
+    ws.addImage(wb.addImage({ base64: imgMensile, extension: "png" }), { tl: { col: 0, row: riga }, ext: { width: L, height: 260 } });
+    ws.addImage(wb.addImage({ base64: imgCo2, extension: "png" }), { tl: { col: 0, row: riga + 14 }, ext: { width: L, height: 280 } });
+
+    const buffer = await wb.xlsx.writeBuffer();
+    const url = URL.createObjectURL(new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "smart-working-savings.xlsx";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div style={{
@@ -255,17 +408,60 @@ function Simulatore() {
         </div>
 
         <div>
+          <button
+            type="button"
+            aria-expanded={parametriAperti}
+            onClick={() => setParametriAperti(!parametriAperti)}
+            style={{
+              width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center",
+              border: "1px solid #ddd6cc", background: "#fffaf5", borderRadius: 3, padding: "8px 12px",
+              marginBottom: 18, fontSize: 13, fontWeight: 600, fontFamily: "inherit", color: "#1a1816", cursor: "pointer",
+            }}
+          >
+            <span>{testo.parameters}</span>
+            <span style={{ fontWeight: 400, color: "#5a5652" }}>
+              {parametriAperti ? testo.hideParameters : testo.showParameters} {parametriAperti ? "▾" : "▸"}
+            </span>
+          </button>
+          {parametriAperti && <>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 18, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 13, color: "#5a5652", fontWeight: 500, marginRight: 6 }}>{testo.vehicleType}</span>
+            {[{ code: "ice", label: "⛽ " + testo.vehicleIce }, { code: "ev", label: "⚡ " + testo.vehicleEv }].map((opt) => (
+              <button
+                key={opt.code}
+                type="button"
+                aria-pressed={tipoAuto === opt.code}
+                onClick={() => setTipoAuto(opt.code)}
+                style={{
+                  border: `1px solid ${tipoAuto === opt.code ? "#b5482a" : "#ddd6cc"}`,
+                  background: tipoAuto === opt.code ? "#fffaf5" : "transparent",
+                  borderRadius: 3,
+                  padding: "6px 10px",
+                  fontSize: 13,
+                  fontFamily: "inherit",
+                  color: "#1a1816",
+                  cursor: "pointer",
+                  opacity: tipoAuto === opt.code ? 1 : 0.65,
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
           <div style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
             columnGap: 28,
             marginBottom: 8,
           }}>
-            <Slider label={testo.fuelPrice} value={prezzoBenzina} onChange={setPrezzoBenzina} min={1.3} max={2.5} step={0.01} unit=" €/L" />
+            {!isEV && <Slider label={testo.fuelPrice} value={prezzoBenzina} onChange={setPrezzoBenzina} min={1.3} max={2.5} step={0.01} unit=" €/L" />}
+            {isEV && <Slider label={testo.evChargeCost} value={costoKwhAuto} onChange={setCostoKwhAuto} min={0.05} max={0.8} step={0.01} unit=" €/kWh" hint={testo.evChargeHint} />}
             <Slider label={testo.commuteDistance} value={kmTratta} onChange={setKmTratta} min={1} max={100} step={1} unit=" km" hint={testo.oneWay} />
-            <Slider label={testo.carConsumption} value={consumoAuto} onChange={setConsumoAuto} min={3} max={15} step={0.1} unit=" L/100km" />
+            {!isEV && <Slider label={testo.carConsumption} value={consumoAuto} onChange={setConsumoAuto} min={3} max={15} step={0.1} unit=" L/100km" />}
+            {isEV && <Slider label={testo.evConsumption} value={consumoEV} onChange={setConsumoEV} min={10} max={30} step={0.5} unit=" kWh/100km" />}
             <Slider label={testo.tollCost} value={costoAutostrada} onChange={setCostoAutostrada} min={0} max={20} step={0.5} unit=" €" hint={testo.oneWay} />
-            <Slider label={testo.remoteDays} value={giorniSW} onChange={setGiorniSW} min={0} max={20} step={1} unit={lingua === "it" ? " gg" : " days"} />
+            <Slider label={testo.remoteDays} value={giorniSettimana} onChange={setGiorniSettimana} min={0} max={5} step={1} unit={lingua === "it" ? " gg" : " days"} />
+            <Slider label={testo.workingWeeks} value={settimaneAnno} onChange={setSettimaneAnno} min={30} max={52} step={1} unit={lingua === "it" ? " sett." : " weeks"} hint={testo.workingWeeksHint} />
             <Slider label={testo.canteenCost} value={costoMensa} onChange={setCostoMensa} min={0} max={10} step={0.5} unit=" €" />
             <Slider label={testo.homeMealCost} value={costoPastoCasa} onChange={setCostoPastoCasa} min={0} max={10} step={0.5} unit=" €" hint={testo.homeMealHint} />
             <Slider label={testo.computerPower} value={potenzaPC} onChange={setPotenzaPC} min={30} max={400} step={10} unit=" W" />
@@ -274,6 +470,7 @@ function Simulatore() {
             <Slider label={testo.heatingExtra} value={costoRiscaldamentoPieno} onChange={setCostoRiscaldamentoPieno} min={0} max={4} step={0.1} unit=" €/gg" hint={testo.heatingHint} />
             <Slider label={testo.fanExtra} value={costoVentilatore} onChange={setCostoVentilatore} min={0} max={1} step={0.05} unit=" €/gg" />
           </div>
+          </>}
 
           <div style={{ marginTop: 12 }}>
             <div style={{
@@ -333,6 +530,46 @@ function Simulatore() {
               ))}
             </div>
 
+            <div style={{ background: "#eef5ea", border: "1px solid #a8c99a", borderRadius: 3, padding: "16px 20px", marginBottom: 28 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>{testo.co2Title}</div>
+              <div style={{ fontSize: 12.5, color: "#5a5652" }}>
+                {fmt(testo.co2Summary, { days: giorniSettimana, kg: Math.round(co2Selezionato) })}
+              </div>
+              <div style={{ fontSize: 20, lineHeight: 1.3, margin: "6px 0 2px" }} aria-hidden="true">
+                {"🌳".repeat(Math.min(alberi, MAX_ALBERI))}{alberi > MAX_ALBERI && <span style={{ fontSize: 13 }}> +{alberi - MAX_ALBERI}</span>}
+              </div>
+              <div style={{ fontSize: 12.5, fontWeight: 600, color: "#3d6b2c", marginBottom: 14 }}>
+                {alberi > 0 ? fmt(testo.co2Trees, { n: alberi }) : testo.co2NoTrees}
+              </div>
+              <div style={{ display: "flex", gap: 8, height: 90, alignItems: "flex-end" }}>
+                {GIORNI_CO2.map((g) => {
+                  const v = co2Annuo(g);
+                  const sel = g === giorniSettimana;
+                  return (
+                    <div key={g} onClick={() => setGiorniSettimana(g)} title={fmt(testo.co2Tooltip, { days: g, kg: Math.round(v) })} style={{ cursor: "pointer", flex: 1, height: "100%", display: "flex", flexDirection: "column", justifyContent: "flex-end", alignItems: "center" }}>
+                      {sel && <span style={{ fontSize: 14, lineHeight: 1 }} aria-hidden="true">🌳</span>}
+                      <div style={{ width: "100%", height: `${v > 0 ? (v / maxCo2) * 85 : 0}%`, background: sel ? "#3d6b2c" : "#5c8a4a", opacity: sel ? 1 : 0.6, borderRadius: "1px 1px 0 0" }} />
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ display: "flex", gap: 8, borderTop: "1px solid #1a1816" }}>
+                {GIORNI_CO2.map((g) => (
+                  <div key={g} onClick={() => setGiorniSettimana(g)} style={{ cursor: "pointer", flex: 1, textAlign: "center", fontSize: 11, color: g === giorniSettimana ? "#1a1816" : "#8a857f", fontWeight: g === giorniSettimana ? 700 : 400 }}>{g}</div>
+                ))}
+              </div>
+              <div style={{ fontSize: 10.5, color: "#8a857f", textAlign: "center", marginTop: 4 }}>{testo.co2Axis}</div>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
+              <button
+                type="button"
+                onClick={esportaExcel}
+                style={{ border: "1px solid #b5482a", background: "#fffaf5", borderRadius: 3, padding: "6px 12px", fontSize: 13, fontFamily: "inherit", color: "#1a1816", cursor: "pointer" }}
+              >
+                📊 {testo.exportExcel}
+              </button>
+            </div>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid #1a1816" }}>
@@ -374,6 +611,11 @@ function Simulatore() {
             <strong style={{ color: "#1a1816" }}>{testo.electricityFormulaTitle}</strong>{testo.electricityFormula}<br/>
             {testo.seasonalExtra}<br/>
             {testo.electricityAssumption}
+          </div>
+
+          <div style={{ marginBottom: 12 }}>
+            <strong style={{ color: "#1a1816" }}>{testo.co2FormulaTitle}</strong>{testo.co2Formula}<br/>
+            {testo.co2Assumption}
           </div>
 
           <div style={{ marginBottom: 12 }}>

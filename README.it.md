@@ -1,53 +1,94 @@
-# Ufficio vs. lavoro da remoto — simulatore dei costi
+# SmartWorkingSaving
 
-Un piccolo strumento interattivo per stimare la differenza reale tra il costo del tragitto verso l'ufficio e quello del lavoro da casa, mese per mese, sulla base di parametri modificabili (prezzo del carburante, distanza del tragitto, consumo dell'auto, pedaggi, costo dei pasti, elettricità e costi stagionali di riscaldamento/raffrescamento).
+Un simulatore interattivo leggero per confrontare il costo di una giornata in ufficio con quello di una giornata lavorata da casa, includendo totali mensili, risparmio annuale e impatto CO2.
 
-**[Apri il simulatore online →](#)** *https://eagleb.github.io/SmartWorkingSaving/*
+Demo live: https://eagleb.github.io/SmartWorkingSaving/
 
-## Perché
+## Panoramica
 
-Molti confronti tra lavoro in ufficio e lavoro da casa si basano su stime approssimative. Questo strumento suddivide la decisione nelle sue componenti di costo effettive — tragitto, pasti e costo incrementale dell'elettricità/riscaldamento necessario per restare a casa durante il giorno — così puoi vedere i risultati nel tuo caso specifico e la sensibilità del risultato al prezzo del carburante o alla distanza del tragitto.
+Questo progetto aiuta a rispondere a una domanda molto concreta: il lavoro da remoto conviene davvero rispetto al tragitto in ufficio, una volta considerati carburante, pedaggi, costo dei pasti, elettricità e costi stagionali di riscaldamento/raffrescamento domestico?
 
-## Cosa fa
+Il calcolatore è pensato per essere trasparente: mostra il delta mensile, il risparmio annuale e la CO2 evitata lavorando da remoto, oltre a esporre le formule e le assunzioni utilizzate.
 
-- 12 parametri regolabili tramite slider: prezzo del carburante, distanza del tragitto, consumo dell'auto, costo dei pedaggi, giorni di lavoro da remoto al mese, costo della mensa aziendale, costo del pasto a casa, consumo di PC e monitor, ore di accensione, prezzo dell'elettricità e costo aggiuntivo stagionale di riscaldamento/raffrescamento.
-- Grafico a barre aggiornato in tempo reale che mostra la differenza mensile (positiva = il lavoro da remoto fa risparmiare, negativa = l'ufficio è più conveniente).
-- Tabella mensile dettagliata con la suddivisione dei costi sottostanti.
-- Una sezione di trasparenza in fondo alla pagina elenca tutte le formule e le ipotesi utilizzate, così il modello non è una scatola nera.
+## Funzionalità attuali
 
-## Come funziona
+- Parametri regolabili per:
+  - prezzo del carburante o costo ricarica EV
+  - distanza casa-ufficio
+  - consumo auto / consumo EV
+  - pedaggi
+  - giorni di lavoro da remoto a settimana
+  - settimane lavorative all'anno
+  - costo mensa aziendale
+  - costo pasto a casa
+  - potenza PC + monitor e ore di utilizzo giornaliere
+  - costo dell'elettricità
+  - extra stagionali di riscaldamento/raffrescamento
+- Selettore veicolo ICE/EV
+- Grafico dei risparmi mensili con delta positivi/negativi
+- Grafico del risparmio annuale di CO2 con numero equivalente di alberi
+- Tabella dettagliata dei costi mensili
+- Pannello di parametri comprimibile
+- Esportazione in Excel (.xlsx) con grafici incorporati
+- Interfaccia bilingue: italiano e inglese
+- Sezione con formule e assunzioni in fondo alla pagina
 
-La logica principale confronta i costi di una singola giornata:
+## Come funziona il modello
 
+Il confronto giornaliero si basa su questa idea:
+
+```text
+delta/giorno = (costo del tragitto + costo mensa - costo pasto a casa) - costo extra di elettricità domestica
 ```
-differenza/giorno = (costo carburante del tragitto + costo mensa − costo pasto a casa) − costo aggiuntivo dell'elettricità domestica
-```
 
-Il costo aggiuntivo dell'elettricità domestica comprende il consumo giornaliero di PC e monitor più una componente stagionale (riscaldamento completo in inverno, parziale nei mesi intermedi, costo del ventilatore in estate, zero nei mesi miti). Si considera soltanto l'elettricità incrementale utilizzata restando a casa durante il giorno, non l'intera bolletta, che viene pagata indipendentemente dal luogo in cui si lavora.
+Il costo extra di elettricità domestica include:
+- il consumo del PC e del monitor durante la giornata di lavoro
+- un componente stagionale per il riscaldamento in inverno e il ventilatore in estate
+- nessun effetto della bolletta completa, poiché si assume che i consumi dell'ufficio siano a carico del datore di lavoro
 
-I totali mensili e annuali sono ottenuti moltiplicando la differenza giornaliera per il numero di giornate di lavoro da remoto impostato.
-
-Le formule e le ipotesi complete sono documentate direttamente nella pagina, nella sezione "Formule e assunzioni".
+I risultati mensili e annuali sono ottenuti moltiplicando questo delta giornaliero per i giorni di smart working e le settimane lavorative configurate.
 
 ## Ipotesi e limitazioni
 
-- I costi della mensa e del pasto a casa si riferiscono a un singolo pasto, non all'intera giornata.
-- Si presume che elettricità, riscaldamento e raffrescamento dell'ufficio siano completamente a carico del datore di lavoro, quindi con costo zero per il dipendente.
-- Non sono inclusi: usura e manutenzione dell'auto, assicurazione, tassa automobilistica, valore del tempo impiegato per il tragitto o costi indiretti del lavoro da casa (ad esempio l'allestimento dell'ufficio domestico).
-- I valori predefiniti riflettono un caso reale specifico (tragitto breve, mensa agevolata, riscaldamento moderato a 16 °C): modifica gli slider per adattarli alla tua situazione.
+- I costi del pasto sono trattati come costo di un singolo pasto, non come costo dell'intera giornata.
+- Si assume che illuminazione, elettricità, riscaldamento e raffrescamento dell'ufficio siano a carico del datore di lavoro.
+- Il modello non include usura e manutenzione dell'auto, assicurazione, tassa automobilistica, valore del tempo dedicato al tragitto o costi indiretti dell'ufficio domestico.
+- I valori predefiniti sono esempi e devono essere adattati alla propria situazione.
 
-## Tecnologia
+## Struttura del progetto
 
-Un unico file `index.html` autonomo. React e Babel vengono caricati da CDN (unpkg): non è necessario alcun processo di build né installare dipendenze. Funziona come pagina statica su GitHub Pages o su qualsiasi altro hosting statico.
+- `index.html` — interfaccia completa, stile, formule e logica dell'app
+- `README.md` — panoramica in inglese
+- `README.it.md` — panoramica in italiano
+- `LICENSE` — licenza MIT
 
 ## Esecuzione in locale
 
-Apri semplicemente `index.html` in un browser oppure servi la cartella con un qualsiasi server di file statici:
+Puoi aprire direttamente l'app nel browser:
 
 ```bash
-python3 -m http.server
+start index.html
 ```
+
+Oppure servirla localmente:
+
+```bash
+python -m http.server
+```
+
+Poi apri http://localhost:8000 nel browser.
+
+## Stack tecnologico
+
+Questo progetto è una single-page app statica costruita con:
+
+- HTML + CSS
+- React via CDN
+- Babel per la compilazione JSX in-browser
+- ExcelJS per l'esportazione del foglio di calcolo
+
+Non è richiesto alcun processo di build né installazione di dipendenze.
 
 ## Licenza
 
-Licenza MIT
+MIT
